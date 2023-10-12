@@ -1,47 +1,62 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <stdio.h>
 
 #define PORT 8080
-#define SERVER_IP "" // Private IP address
+#define SERVER_IP "192.168.0.7" // Private IP address
 
 int main()
 {
-    // Declare variables
-    int server_fd, new_socket;
-    struct sockaddr_in address; // Struct holds address information
-    int addrlen = sizeof(address);
+    // Create socket
+    struct sockaddr_in server_address;
 
-    // Create a socket
-    // Return value should be handled
-    server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    int sfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sfd < 0)
+    {
+        perror("socket error\n");
+        return -1;
+    }
 
-    // Configure address
-    address.sin_family = AF_INET; // Address uses IPV4
-    address.sin_addr.s_addr = inet_addr(SERVER_IP); // Set up address
-    address.sin_port = htons(PORT); // Convert PORT from host byte order to network byte order and set it up
+    server_address.sin_family = AF_INET;
+    server_address.sin_addr.s_addr = inet_addr(SERVER_IP);
+    server_address.sin_port = htons(PORT);
 
-    // Bind socket to IP and port 
-    // Return value should be handled
-    bind(server_fd, (struct sockaddr *)&address, sizeof(address));
+    int server_address_len = sizeof(server_address);
 
-    // Listen for incoming requests
-    // Return value should be handled
-    listen(server_fd, 3);
+    // Bind
+    if (bind(sfd, (struct sockaddr *)&server_address, server_address_len) < 0)
+    {
+        perror("bind error\n");
+        return -1;
+    }
 
-    // Continuously handle incoming connections
+    // Listen for incoming connections
+    if (listen(sfd, 0) < 0)
+    {
+        perror("listen error\n");
+        return -1;
+    }
+
+    printf("The server is listening for incoming connections\n");
+
+    // Handle connections
     while (1)
     {
-        // Accept an incoming connection
-        new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t *)&addrlen);
+        // Accept connection
+        int cfd = accept(sfd, (struct sockaddr *)&server_address, (socklen_t *)&server_address_len);
 
-        // Draft a response
+        // Send response
         const char *response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nHello, World!\r\n";
 
-        // Send the response
-        send(new_socket, response, strlen(response), 0);
+        if (send(cfd, response, strlen(response), 0) < 0)
+        {
+            perror("send error\n");
+            return -1;
+        }
+        printf("message sent\n");
 
-        // Close the socket
-        close(new_socket);
+        // Close socket
+        close(cfd);
     }
 }
